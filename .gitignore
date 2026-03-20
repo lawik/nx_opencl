@@ -22,3 +22,7 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 nx_opencl-*.tar
 
+# Rustler NIF build output.
+/priv/native/
+/native/nxcl_nif/target/
+
