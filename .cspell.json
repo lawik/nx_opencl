@@ -20,6 +20,7 @@
   ],
   "ignorePaths": [
     "architecture.md",
+    "benchmarks",
     "compiler_plan.md",
     "config",
     "mix.exs",
