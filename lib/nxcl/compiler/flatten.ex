@@ -100,14 +100,7 @@ defmodule NxCL.Compiler.Flatten do
 
           # Lists of tensors (e.g. in concatenate)
           list, {a, ids} when is_list(list) ->
-            Enum.reduce(list, {a, ids}, fn
-              %Nx.Tensor{data: %Nx.Defn.Expr{}} = child, {a2, ids2} ->
-                {a2, child_id} = collect(child, a2)
-                {a2, [child_id | ids2]}
-
-              _other, acc_inner ->
-                acc_inner
-            end)
+            collect_list(list, {a, ids})
 
           _other, {a, ids} ->
             {a, ids}
@@ -115,6 +108,17 @@ defmodule NxCL.Compiler.Flatten do
 
       {acc, id}
     end
+  end
+
+  defp collect_list(list, acc) do
+    Enum.reduce(list, acc, fn
+      %Nx.Tensor{data: %Nx.Defn.Expr{}} = child, {a, ids} ->
+        {a, child_id} = collect(child, a)
+        {a, [child_id | ids]}
+
+      _other, acc_inner ->
+        acc_inner
+    end)
   end
 
   # Topological sort using Kahn's algorithm

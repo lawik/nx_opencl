@@ -130,6 +130,140 @@ All other Nx operations fall back to the CPU backend automatically
 when using `NxCL.Backend`. The compiler (`NxCL.Compiler`) raises on
 unsupported ops.
 
+## Cross-Compilation (Nerves)
+
+NxCL uses dynamic loading (`dlopen`) for `libOpenCL.so` at runtime,
+so **no OpenCL library is needed at compile time**. The Rust target
+and cross-linker are derived automatically from the Nerves environment
+variables (`TARGET_ARCH`, `TARGET_OS`, `TARGET_ABI`, `CC`).
+
+### Build
+
+No extra environment variables are needed. Just build your Nerves
+firmware as usual:
+
+```bash
+export MIX_TARGET=my_custom_target
+mix deps.get
+mix firmware
+```
+
+NxCL reads the Nerves toolchain variables at compile time to:
+- Derive the Rust target triple (e.g. `aarch64-unknown-linux-gnu`)
+  from `TARGET_ARCH` + `TARGET_OS` + `TARGET_ABI`
+- Set the Cargo linker from `CC`
+
+You can override with `RUSTLER_TARGET` if needed.
+
+### Nerves system requirements
+
+NxCL needs an OpenCL runtime on the target device. Standard Nerves
+targets (rpi4, bbb) do **not** include GPU compute support. You need
+a custom Nerves system for a SoC with an OpenCL-capable GPU.
+
+#### Linux kernel defconfig
+
+Enable the DRM driver for your GPU:
+
+```
+# Core (required)
+CONFIG_DRM=y
+CONFIG_IOMMU_SUPPORT=y
+CONFIG_PM=y
+
+# Raspberry Pi 4/5 (VideoCore VI/VII)
+CONFIG_DRM_V3D=y
+
+# Qualcomm Adreno (Snapdragon SoCs)
+CONFIG_DRM_MSM=y
+
+# ARM Mali Bifrost/Valhall (e.g. RK3588 Mali-G610)
+CONFIG_DRM_PANFROST=y
+
+# ARM Mali Valhall CSF (newer Mali, requires kernel 6.9+)
+CONFIG_DRM_PANTHOR=y
+```
+
+#### Buildroot / Nerves system config
+
+Enable Mesa with Rusticl (open-source OpenCL via Mesa's Gallium drivers):
+
+```
+# Mesa with the appropriate GPU driver
+BR2_PACKAGE_MESA3D=y
+BR2_PACKAGE_MESA3D_OPENCL=y
+
+# Pick your GPU driver:
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_V3D=y        # RPi4/5
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_FREEDRENO=y  # Adreno
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_PANFROST=y   # Mali
+
+# ICD loader (dispatches to the Mesa driver)
+BR2_PACKAGE_OPENCL_ICD_LOADER=y
+```
+
+Rusticl requires LLVM and a Rust toolchain at build time, which
+Buildroot pulls in automatically. Set `RUSTICL_ENABLE=freedreno`
+(or `panfrost`) on the target device to activate the driver.
+
+Alternatively, include vendor-proprietary OpenCL blobs in your rootfs
+if available for your SoC.
+
+#### Supported GPU families
+
+| GPU | Kernel driver | Mesa driver | OpenCL status |
+|---|---|---|---|
+| RPi4 VideoCore VI | `v3d` | v3d | Rusticl, merged Mesa 24.2 |
+| RPi5 VideoCore VII | `v3d` | v3d | Rusticl, merged Mesa 24.2 |
+| Adreno 6xx/7xx | `drm_msm` | freedreno | Rusticl, merged Mesa 24.3 |
+| Mali Bifrost/Valhall | `drm_panfrost` | panfrost | Rusticl, merged Mesa 25.1 |
+| Mali Valhall CSF | `drm_panthor` | panfrost | Rusticl, merged Mesa 25.1 |
+
+#### CPU OpenCL (no GPU required)
+
+[PoCL](https://portablecl.org/) (Portable Computing Language) provides
+an OpenCL implementation that runs on the CPU via LLVM. This works on
+any ARM device — no GPU needed. It's slower than a real GPU for
+parallel workloads, but it gives you a working OpenCL runtime for
+development, testing, or devices where the GPU isn't available.
+
+**On the host (development):**
+
+```bash
+# Ubuntu/Debian
+sudo apt install pocl-opencl-icd ocl-icd-libopencl1 ocl-icd-opencl-dev
+```
+
+**On-device (Nerves):** There is no upstream Buildroot package for
+PoCL. You'll need a custom package in a `br2-external` tree. PoCL
+builds with CMake and depends on LLVM/Clang:
+
+```
+# In your br2-external package Config.in
+config BR2_PACKAGE_POCL
+    bool "pocl"
+    depends on BR2_PACKAGE_LLVM
+    depends on BR2_INSTALL_LIBSTDCPP
+    help
+      Portable Computing Language - OpenCL implementation for CPUs.
+      https://portablecl.org/
+```
+
+PoCL supports ARM (32-bit and aarch64) and is OpenCL 3.0 conformant
+for CPU targets. Note that LLVM is a heavy dependency — it will
+significantly increase build time and image size.
+
+**On-device (plain Linux):**
+
+```bash
+# Debian/Ubuntu ARM
+sudo apt install pocl-opencl-icd
+
+# Verify
+clinfo --list
+# Should show: Portable Computing Language / pthread-...
+```
+
 ## Running Tests
 
 ```bash

@@ -38,7 +38,7 @@ defmodule NxCL.Compiler do
 
   @behaviour Nx.Defn.Compiler
 
-  alias NxCL.Compiler.{Flatten, FlatOp}
+  alias NxCL.Compiler.{FlatOp, Flatten}
 
   @impl true
   def __jit__(key, vars, fun, args_list, opts) do

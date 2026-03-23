@@ -1,0 +1,21 @@
+# Cross-compilation targets.
+#
+# Nerves sets CC, CFLAGS, LDFLAGS etc. for the target toolchain.
+# Cargo picks up the linker from the CARGO_TARGET_<TRIPLE>_LINKER env var,
+# or from the [target.<triple>.linker] setting here.
+#
+# When building under Nerves, the linker is derived from CC automatically
+# by our build.rs. These defaults are fallbacks for manual cross-compilation
+# outside of Nerves.
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.aarch64-unknown-linux-musl]
+linker = "aarch64-linux-musl-gcc"
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+
+[target.armv7-unknown-linux-musleabihf]
+linker = "arm-linux-musleabihf-gcc"

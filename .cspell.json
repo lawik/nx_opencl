@@ -68,6 +68,11 @@
     "paravirtualised",
     "SPIR",
     "Smol",
+    "armv",
+    "aarch",
+    "gnueabihf",
+    "musl",
+    "musleabihf",
     "topo",
     "gelu",
     "linalg"

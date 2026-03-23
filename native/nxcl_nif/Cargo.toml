@@ -10,4 +10,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rustler = "0.36"
-opencl3 = "0.9"
+opencl3 = "0.10"
